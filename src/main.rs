@@ -39,13 +39,17 @@ async fn main() {
             .to_str()
             .unwrap_or_else(|| exit_with_error("failed converting jar file path to a string")));
 
-        (i
+        let output = (i
              .path()
              .file_name()
              .unwrap_or_else(|| exit_with_error("failed getting mod filename"))
              .to_str()
              .unwrap_or_else(|| exit_with_error("failed converting mod filename to string"))
-             .to_string(), compute_hash(&buffer))
+             .to_string(), compute_hash(&buffer));
+
+        println!("hashed {} with hash {}", output.0, output.1);
+
+        output
     })
         .collect::<Vec<_>>();
 
@@ -78,6 +82,9 @@ async fn main() {
             .unwrap_or_else(|err| exit_with_error(&format!("failed serializing mod data response: {} \n {}", err, &file_name)));
 
         let MatchFile { download_url } = &res.data.exactMatches[0].file;
+
+        println!("{} fingerprint returned with url {}", file_name, download_url);
+
 
         instance.installed_addons.push(Addon{
             installed_file: AddonFile {
