@@ -95,7 +95,9 @@ async fn main() {
 
     }
 
-
+    instance.installed_addons.sort_by(|a,b| {
+        a.installed_file.file_name_on_disk.cmp(&b.installed_file.file_name_on_disk)
+    });
 
     let output = serde_json::to_string_pretty(&instance).unwrap_or_else(|err| exit_with_error(&format!("failed serializing output: {}", err)));
 
