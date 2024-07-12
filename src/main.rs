@@ -59,6 +59,8 @@ async fn main() {
         installed_addons: vec![],
         cached_scans: vec![],
     };
+    
+    let mut errored: Vec<String> = vec![];
 
     for (file_name, hash) in hashes {
         let res = client
@@ -74,13 +76,23 @@ async fn main() {
             .await
             .unwrap_or_else(|err| exit_with_error(&format!("failed getting data of mod: {}", err)));
 
-        let value: Value = serde_json::from_str(&res).unwrap();
+        let value: Value = match serde_json::from_str(&res) {
+            Ok(v) => v,
+            Err(err) => {
+                eprintln!("error: {err}\n\n\n response: {res}");
+                exit(1);
+            }
+        };
 
         let res = serde_json::to_string_pretty(&value).unwrap();
 
         let res: FingerprintResponse = serde_json::from_str(&res)
             .unwrap_or_else(|err| exit_with_error(&format!("failed serializing mod data response: {} \n {}", err, &file_name)));
 
+        if res.data.exactMatches.is_empty() {
+            errored.push(format!("no matched for file {file_name} found."));
+            continue;
+        }
         let MatchFile { download_url } = &res.data.exactMatches[0].file;
 
         println!("{} fingerprint returned with url {}", file_name, download_url);
@@ -96,7 +108,7 @@ async fn main() {
     }
 
     instance.installed_addons.sort_by(|a,b| {
-        a.installed_file.file_name_on_disk.cmp(&b.installed_file.file_name_on_disk)
+        a.installed_file.file_name_on_disk.to_lowercase().cmp(&b.installed_file.file_name_on_disk.to_lowercase())
     });
 
     let output = serde_json::to_string_pretty(&instance).unwrap_or_else(|err| exit_with_error(&format!("failed serializing output: {}", err)));
@@ -105,6 +117,13 @@ async fn main() {
     println!("writing to output file");
     // create and or wipe file
     std::fs::write(&args.output, output).unwrap_or_else(|err| exit_with_error(&format!("failed writing to output file: {}", err)));
+    
+    if !errored.is_empty() {
+        eprintln!("process finished with {} errors", errored.len());
+        for err in errored {
+            eprintln!("{err}");
+        }
+    }
 
 }
 
